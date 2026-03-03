@@ -25,7 +25,7 @@ If, when a callback becomes ready while it is executing, it can be properly enqu
 
 **ROS 2 Mainline**
 
-If the Executor has been merged into the ROS 2 mainline, or can be introduced without modifying the ROS 2 implementation, ✔ is marked.
+If the Executor has been merged into the ROS 2 mainline, or can be used by simply installing a standalone package without requiring changes to rcl or rclcpp, ✔ is marked.
 
 ---
 
