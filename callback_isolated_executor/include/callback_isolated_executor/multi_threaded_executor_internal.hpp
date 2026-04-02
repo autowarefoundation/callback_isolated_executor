@@ -29,13 +29,13 @@ class MultiThreadedExecutorInternal : public rclcpp::Executor {
   void run();
 
 public:
-  explicit MultiThreadedExecutorInternal(size_t number_of_threads)
+  explicit MultiThreadedExecutorInternal(
+      size_t number_of_threads, bool yield_before_execute = false,
+      std::chrono::nanoseconds next_exec_timeout = std::chrono::nanoseconds(-1))
       : rclcpp::Executor(rclcpp::ExecutorOptions()),
-        number_of_threads_(number_of_threads) {
-    // hardcode for now
-    yield_before_execute_ = false;
-    next_exec_timeout_ = std::chrono::nanoseconds(-1);
-  }
+        number_of_threads_(number_of_threads),
+        yield_before_execute_(yield_before_execute),
+        next_exec_timeout_(next_exec_timeout) {}
 
   void pre_spin();
 

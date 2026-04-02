@@ -11,8 +11,11 @@
 #include "callback_isolated_executor/multi_threaded_executor_internal.hpp"
 
 CallbackIsolatedExecutor::CallbackIsolatedExecutor(
-    const rclcpp::ExecutorOptions &options)
-    : rclcpp::Executor(options) {
+    const rclcpp::ExecutorOptions &options, size_t reentrant_parallelism,
+    bool yield_before_execute, std::chrono::nanoseconds next_exec_timeout)
+    : rclcpp::Executor(options), reentrant_parallelism_(reentrant_parallelism),
+      yield_before_execute_(yield_before_execute),
+      next_exec_timeout_(next_exec_timeout) {
   client_publisher_ = cie_thread_configurator::create_client_publisher();
 }
 
@@ -94,8 +97,8 @@ void CallbackIsolatedExecutor::spin_mutually_exclusive_callback_group(
 void CallbackIsolatedExecutor::spin_reentrant_callback_group(
     rclcpp::CallbackGroup::SharedPtr group,
     rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node) {
-  auto executor =
-      std::make_shared<MultiThreadedExecutorInternal>(reentrant_parallelism_);
+  auto executor = std::make_shared<MultiThreadedExecutorInternal>(
+      reentrant_parallelism_, yield_before_execute_, next_exec_timeout_);
   executor->add_callback_group(group, node);
   auto callback_group_id =
       cie_thread_configurator::create_callback_group_id(group, node);

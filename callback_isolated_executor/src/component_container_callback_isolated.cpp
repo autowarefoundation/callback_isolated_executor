@@ -35,6 +35,20 @@ public:
         create_publisher<cie_config_msgs::msg::CallbackGroupInfo>(
             "/cie_thread_configurator/callback_group_info",
             rclcpp::QoS(1000).keep_all());
+
+    // Declare and get parameters for MultiThreadedExecutorInternal
+    auto reentrant_parallelism_param =
+        declare_parameter("reentrant_parallelism", 4);
+    if (reentrant_parallelism_param < 0) {
+      RCLCPP_WARN(get_logger(),
+                  "reentrant_parallelism must be non-negative, using default "
+                  "value 4");
+      reentrant_parallelism_param = 4;
+    }
+    reentrant_parallelism_ = static_cast<size_t>(reentrant_parallelism_param);
+    yield_before_execute_ = declare_parameter("yield_before_execute", false);
+    auto timeout_ns = declare_parameter("next_exec_timeout_ns", -1L);
+    next_exec_timeout_ = std::chrono::nanoseconds(timeout_ns);
   }
 
   ~ComponentManagerCallbackIsolated();
@@ -52,7 +66,12 @@ private:
   rclcpp::Publisher<cie_config_msgs::msg::CallbackGroupInfo>::SharedPtr
       client_publisher_;
   std::mutex client_publisher_mutex_;
+
+  // Parameters for the MultiThreadedExecutorInternal used for reentrant
+  // callback groups
   size_t reentrant_parallelism_{4};
+  bool yield_before_execute_{false};
+  std::chrono::nanoseconds next_exec_timeout_{std::chrono::nanoseconds(-1)};
 };
 
 ComponentManagerCallbackIsolated::~ComponentManagerCallbackIsolated() {
@@ -139,7 +158,7 @@ void ComponentManagerCallbackIsolated::add_node_to_executor(uint64_t node_id) {
         reentrant_parallelism_ >= 2) {
       // Reentrant callback group: use MultiThreadedExecutorInternal
       auto reentrant_executor = std::make_shared<MultiThreadedExecutorInternal>(
-          reentrant_parallelism_);
+          reentrant_parallelism_, yield_before_execute_, next_exec_timeout_);
       reentrant_executor->add_callback_group(callback_group, node);
 
       auto it = node_id_to_executor_wrappers_[node_id].begin();

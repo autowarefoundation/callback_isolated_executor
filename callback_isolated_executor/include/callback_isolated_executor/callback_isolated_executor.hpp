@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "cie_config_msgs/msg/callback_group_info.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -9,7 +11,12 @@ class CallbackIsolatedExecutor : public rclcpp::Executor {
   std::mutex client_publisher_mutex_;
   rclcpp::Publisher<cie_config_msgs::msg::CallbackGroupInfo>::SharedPtr
       client_publisher_;
-  size_t reentrant_parallelism_{4};
+
+  // Parameters for the MultiThreadedExecutorInternal used for reentrant
+  // callback groups
+  size_t reentrant_parallelism_ = 4;
+  bool yield_before_execute_ = false;
+  std::chrono::nanoseconds next_exec_timeout_ = std::chrono::nanoseconds(-1);
 
   // Nodes associated with this CallbackIsolatedExecutor, appended by add_node()
   // and removed by remove_node()
@@ -44,7 +51,10 @@ class CallbackIsolatedExecutor : public rclcpp::Executor {
 public:
   RCLCPP_PUBLIC
   explicit CallbackIsolatedExecutor(
-      const rclcpp::ExecutorOptions &options = rclcpp::ExecutorOptions());
+      const rclcpp::ExecutorOptions &options = rclcpp::ExecutorOptions(),
+      size_t reentrant_parallelism = 4, bool yield_before_execute = false,
+      std::chrono::nanoseconds next_exec_timeout =
+          std::chrono::nanoseconds(-1));
 
   RCLCPP_PUBLIC
   void spin() override;
