@@ -266,7 +266,7 @@ You need to apply the `SCHED_DEADLINE` policy only after the system has fully st
 
 The configurator node runs persistently and will automatically re-apply configurations if the target ROS 2 application is restarted.
 To terminate the configurator node, press Ctrl+C.
-If `SCHED_DEADLINE` policies were used, the configurator node will attempt to remove the cpuset cgroups it created for affinity settings when it exits. This cleanup will only succeed if the target application has already stopped and no threads remain attached to those cgroups; otherwise, you may need to stop the application first and/or remove the remaining cgroups manually.
+If `SCHED_DEADLINE` policies were used, the cgroups created for affinity settings will be cleaned up automatically on exit.
 
 ## Notes on Adoption
 

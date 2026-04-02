@@ -273,19 +273,8 @@ void ThreadConfiguratorNode::callback_group_callback(
   config->thread_id = msg->thread_id;
 
   if (config->policy == "SCHED_DEADLINE") {
-    if (configured_at_least_once_) {
-      // After first cycle, apply SCHED_DEADLINE immediately to avoid
-      // late-arriving reentrant threads being stuck waiting for a new cycle
-      if (!issue_syscalls(*config)) {
-        RCLCPP_WARN(this->get_logger(),
-                    "Failed to apply SCHED_DEADLINE for callback group "
-                    "(id=%s, tid=%ld)",
-                    msg->callback_group_id.c_str(), msg->thread_id);
-      }
-    } else {
-      // Store a copy so that each thread_id is preserved independently
-      deadline_configs_.push_back(*config);
-    }
+    // Store a copy so that each thread_id is preserved independently
+    deadline_configs_.push_back(*config);
   } else {
     if (!issue_syscalls(*config)) {
       RCLCPP_WARN(this->get_logger(),
@@ -338,19 +327,8 @@ void ThreadConfiguratorNode::non_ros_thread_callback(
   config->thread_id = msg->thread_id;
 
   if (config->policy == "SCHED_DEADLINE") {
-    if (configured_at_least_once_) {
-      // After first cycle, apply SCHED_DEADLINE immediately to avoid
-      // late-arriving threads being stuck waiting for a new cycle
-      if (!issue_syscalls(*config)) {
-        RCLCPP_WARN(this->get_logger(),
-                    "Failed to apply SCHED_DEADLINE for non-ROS thread "
-                    "(name=%s, tid=%ld)",
-                    msg->thread_name.c_str(), msg->thread_id);
-      }
-    } else {
-      // Store a copy so that each thread_id is preserved independently
-      deadline_configs_.push_back(*config);
-    }
+    // Store a copy so that each thread_id is preserved independently
+    deadline_configs_.push_back(*config);
   } else {
     if (!issue_syscalls(*config)) {
       RCLCPP_WARN(this->get_logger(),
@@ -372,25 +350,17 @@ void ThreadConfiguratorNode::non_ros_thread_callback(
 }
 
 void ThreadConfiguratorNode::apply_deadline_configs() {
-  bool all_succeeded = true;
   for (const auto &config : deadline_configs_) {
     if (!issue_syscalls(config)) {
       RCLCPP_WARN(this->get_logger(),
                   "Failed to apply SCHED_DEADLINE for tid=%ld",
                   config.thread_id);
-      all_succeeded = false;
     }
   }
   deadline_configs_.clear();
 
-  if (all_succeeded) {
-    RCLCPP_INFO(this->get_logger(),
-                "Success: All of the configurations are applied.");
-  } else {
-    RCLCPP_WARN(this->get_logger(),
-                "Some SCHED_DEADLINE configurations failed to apply. "
-                "Non-deadline configurations were applied successfully.");
-  }
+  RCLCPP_INFO(this->get_logger(),
+              "Success: All of the configurations are applied.");
 
   configured_at_least_once_ = true;
 
