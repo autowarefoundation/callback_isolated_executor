@@ -31,10 +31,7 @@ public:
   template <typename... Args>
   ComponentManagerCallbackIsolated(Args &&...args)
       : rclcpp_components::ComponentManager(std::forward<Args>(args)...) {
-    client_publisher_ =
-        create_publisher<cie_config_msgs::msg::CallbackGroupInfo>(
-            "/cie_thread_configurator/callback_group_info",
-            rclcpp::QoS(1000).keep_all());
+    client_publisher_ = cie_thread_configurator::create_client_publisher();
 
     // Declare and get parameters for MultiThreadedExecutorInternal
     auto reentrant_parallelism_param =

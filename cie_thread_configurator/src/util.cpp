@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include <array>
 #include <chrono>
 #include <functional>
@@ -62,10 +64,13 @@ std::string create_callback_group_id(rclcpp::CallbackGroup::SharedPtr group,
 
 rclcpp::Publisher<cie_config_msgs::msg::CallbackGroupInfo>::SharedPtr
 create_client_publisher() {
-  static int idx = 1;
-
-  auto node = std::make_shared<rclcpp::Node>(
-      "client_node" + std::to_string(idx++), "/cie_thread_configurator");
+  rclcpp::NodeOptions options;
+  // Disable global arguments so that global "__node" remapping cannot override
+  // this name and cause duplicate node names for these per-client nodes.
+  options.use_global_arguments(false);
+  auto node =
+      std::make_shared<rclcpp::Node>("client_node_" + std::to_string(getpid()),
+                                     "/cie_thread_configurator", options);
   auto publisher =
       node->create_publisher<cie_config_msgs::msg::CallbackGroupInfo>(
           "/cie_thread_configurator/callback_group_info",
