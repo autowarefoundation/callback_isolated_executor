@@ -245,12 +245,8 @@ After successful validation, the configurator will print the settings and then w
 In this state, when you launch the target ROS 2 application, the configurator node will receive callback group information from the application.
 The entries in the configurator window show the callback group ID and OS thread ID information received from the ROS 2 application.
 
-If your configuration file contains callback groups with the `SCHED_DEADLINE` policy, the configurator node's window will display the message `Apply sched deadline?` and wait as shown below. If no `SCHED_DEADLINE` configurations are present, this prompt will be skipped automatically.
-
-<img width="1346" height="160" alt="cie_image2" src="https://github.com/user-attachments/assets/934ab8d5-4894-4549-aa57-d9e7ef8f22c9" />
-
-At this stage, settings with policies other than `SCHED_DEADLINE` have already been applied, while the application of settings including the `SCHED_DEADLINE` policy is postponed.
-To apply settings that include the `SCHED_DEADLINE` policy, press the enter key in the window where `Apply sched deadline?` is displayed.
+Settings with policies other than `SCHED_DEADLINE` are applied immediately as each callback group is received.
+Once all callback groups have been registered, `SCHED_DEADLINE` settings are automatically applied together.
 
 <details>
 <summary>Why delayed configuration of the SCHED_DEADLINE policy?</summary>
@@ -268,11 +264,9 @@ Therefore, applying the `SCHED_DEADLINE` policy after the system has started, su
 You need to apply the `SCHED_DEADLINE` policy only after the system has fully started up and no further creation of new child threads is expected.
 </details>
 
-<img width="1348" height="223" alt="cie_image3" src="https://github.com/user-attachments/assets/0ce5f16c-af94-4d0e-976d-a09604c14367" />
-
-While the target ROS 2 application is running, the configurator node's window should not be closed and must remain open.
-After the execution of the target ROS 2 application has ended, press the enter key in the window displaying `Press enter to exit and remove cgroups...`.
-This will terminate the execution of the configurator node and simultaneously delete the cgroup that was created for setting the affinity of tasks with the `SCHED_DEADLINE` policy.
+The configurator node runs persistently and will automatically re-apply configurations if the target ROS 2 application is restarted.
+To terminate the configurator node, press Ctrl+C.
+If `SCHED_DEADLINE` policies were used, the cgroups created for affinity settings will be cleaned up automatically on exit.
 
 ## Notes on Adoption
 

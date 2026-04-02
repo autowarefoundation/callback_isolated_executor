@@ -26,13 +26,10 @@ class ThreadConfiguratorNode : public rclcpp::Node {
   };
 
 public:
-  ThreadConfiguratorNode(const YAML::Node &yaml);
+  explicit ThreadConfiguratorNode(const YAML::Node &yaml);
   ~ThreadConfiguratorNode();
-  bool all_applied();
   void print_all_unapplied();
-
-  bool exist_deadline_config();
-  bool apply_deadline_configs();
+  bool has_configured_once() const;
 
 private:
   bool set_affinity_by_cgroup(int64_t thread_id, const std::vector<int> &cpus);
@@ -41,6 +38,7 @@ private:
       const cie_config_msgs::msg::CallbackGroupInfo::SharedPtr msg);
   void non_ros_thread_callback(
       const cie_config_msgs::msg::NonRosThreadInfo::SharedPtr msg);
+  void apply_deadline_configs();
 
   rclcpp::Subscription<cie_config_msgs::msg::CallbackGroupInfo>::SharedPtr
       subscription_;
@@ -51,6 +49,7 @@ private:
   std::unordered_map<std::string, ThreadConfig *> id_to_thread_config_;
   int unapplied_num_;
   int cgroup_num_;
+  bool configured_at_least_once_ = false;
 
-  std::vector<ThreadConfig *> deadline_configs_;
+  std::vector<ThreadConfig> deadline_configs_;
 };

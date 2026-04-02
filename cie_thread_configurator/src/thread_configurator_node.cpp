@@ -100,8 +100,6 @@ ThreadConfiguratorNode::~ThreadConfiguratorNode() {
   }
 }
 
-bool ThreadConfiguratorNode::all_applied() { return unapplied_num_ == 0; }
-
 void ThreadConfiguratorNode::print_all_unapplied() {
   RCLCPP_WARN(this->get_logger(), "Following threads are not yet configured");
 
@@ -110,6 +108,10 @@ void ThreadConfiguratorNode::print_all_unapplied() {
       RCLCPP_WARN(this->get_logger(), "  - %s", config.thread_str.c_str());
     }
   }
+}
+
+bool ThreadConfiguratorNode::has_configured_once() const {
+  return configured_at_least_once_;
 }
 
 bool ThreadConfiguratorNode::set_affinity_by_cgroup(
@@ -250,11 +252,20 @@ void ThreadConfiguratorNode::callback_group_callback(
 
   ThreadConfig *config = it->second;
   if (config->applied) {
+    if (config->thread_id == msg->thread_id) {
+      RCLCPP_INFO(
+          this->get_logger(),
+          "This callback group is already configured. skip (id=%s, tid=%ld)",
+          msg->callback_group_id.c_str(), msg->thread_id);
+      return;
+    }
     RCLCPP_INFO(
         this->get_logger(),
-        "This callback group is already configured. skip (id=%s, tid=%ld)",
-        msg->callback_group_id.c_str(), msg->thread_id);
-    return;
+        "Detected a new thread for an already-configured callback group. "
+        "This is expected when the application was restarted or the group "
+        "is Reentrant with multiple threads. Applying configuration "
+        "(id=%s, old_tid=%ld, new_tid=%ld)",
+        msg->callback_group_id.c_str(), config->thread_id, msg->thread_id);
   }
 
   RCLCPP_INFO(this->get_logger(), "Received CallbackGroupInfo: tid=%ld | %s",
@@ -262,16 +273,26 @@ void ThreadConfiguratorNode::callback_group_callback(
   config->thread_id = msg->thread_id;
 
   if (config->policy == "SCHED_DEADLINE") {
-    // delayed applying
-    deadline_configs_.push_back(config);
+    // Store a copy so that each thread_id is preserved independently
+    deadline_configs_.push_back(*config);
   } else {
-    bool success = issue_syscalls(*config);
-    if (!success)
+    if (!issue_syscalls(*config)) {
+      RCLCPP_WARN(this->get_logger(),
+                  "Skipping configuration for callback group (id=%s, tid=%ld) "
+                  "due to syscall failure.",
+                  msg->callback_group_id.c_str(), msg->thread_id);
       return;
+    }
   }
 
-  config->applied = true;
-  unapplied_num_--;
+  if (!config->applied) {
+    unapplied_num_--;
+    config->applied = true;
+  }
+
+  if (unapplied_num_ == 0) {
+    apply_deadline_configs();
+  }
 }
 
 void ThreadConfiguratorNode::non_ros_thread_callback(
@@ -287,10 +308,18 @@ void ThreadConfiguratorNode::non_ros_thread_callback(
 
   ThreadConfig *config = it->second;
   if (config->applied) {
+    if (config->thread_id == msg->thread_id) {
+      RCLCPP_INFO(
+          this->get_logger(),
+          "This non-ROS thread is already configured. skip (name=%s, tid=%ld)",
+          msg->thread_name.c_str(), msg->thread_id);
+      return;
+    }
     RCLCPP_INFO(this->get_logger(),
-                "This thread is already configured. skip (name=%s, tid=%ld)",
-                msg->thread_name.c_str(), msg->thread_id);
-    return;
+                "This non-ROS thread is already configured, but thread_id "
+                "changed. Re-applying configuration (name=%s, old_tid=%ld, "
+                "new_tid=%ld)",
+                msg->thread_name.c_str(), config->thread_id, msg->thread_id);
   }
 
   RCLCPP_INFO(this->get_logger(), "Received NonRosThreadInfo: tid=%ld | %s",
@@ -298,27 +327,46 @@ void ThreadConfiguratorNode::non_ros_thread_callback(
   config->thread_id = msg->thread_id;
 
   if (config->policy == "SCHED_DEADLINE") {
-    // delayed applying
-    deadline_configs_.push_back(config);
+    // Store a copy so that each thread_id is preserved independently
+    deadline_configs_.push_back(*config);
   } else {
-    bool success = issue_syscalls(*config);
-    if (!success)
+    if (!issue_syscalls(*config)) {
+      RCLCPP_WARN(this->get_logger(),
+                  "Skipping configuration for non-ROS thread (name=%s, "
+                  "tid=%ld) due to syscall failure.",
+                  msg->thread_name.c_str(), msg->thread_id);
       return;
+    }
   }
 
+  if (!config->applied) {
+    unapplied_num_--;
+  }
   config->applied = true;
-  unapplied_num_--;
-}
 
-bool ThreadConfiguratorNode::apply_deadline_configs() {
-  for (auto config : deadline_configs_) {
-    if (!issue_syscalls(*config))
-      return false;
+  if (unapplied_num_ == 0) {
+    apply_deadline_configs();
   }
-
-  return true;
 }
 
-bool ThreadConfiguratorNode::exist_deadline_config() {
-  return !deadline_configs_.empty();
+void ThreadConfiguratorNode::apply_deadline_configs() {
+  for (const auto &config : deadline_configs_) {
+    if (!issue_syscalls(config)) {
+      RCLCPP_WARN(this->get_logger(),
+                  "Failed to apply SCHED_DEADLINE for tid=%ld",
+                  config.thread_id);
+    }
+  }
+  deadline_configs_.clear();
+
+  RCLCPP_INFO(this->get_logger(),
+              "Success: All of the configurations are applied.");
+
+  configured_at_least_once_ = true;
+
+  // Reset for re-application when target applications restart
+  unapplied_num_ = thread_configs_.size();
+  for (auto &config : thread_configs_) {
+    config.applied = false;
+  }
 }
