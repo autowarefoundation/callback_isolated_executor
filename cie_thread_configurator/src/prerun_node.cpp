@@ -14,7 +14,8 @@
 PrerunNode::PrerunNode() : Node("prerun_node") {
   subscription_ =
       this->create_subscription<cie_config_msgs::msg::CallbackGroupInfo>(
-          "/cie_thread_configurator/callback_group_info", 100,
+          "/cie_thread_configurator/callback_group_info",
+          rclcpp::QoS(100).reliable().transient_local(),
           std::bind(&PrerunNode::callback_group_callback, this,
                     std::placeholders::_1));
 
