@@ -76,20 +76,16 @@ ThreadConfiguratorNode::ThreadConfiguratorNode(const YAML::Node &yaml)
     id_to_thread_config_[config.thread_str] = &config;
   }
 
-  auto cbg_qos = rclcpp::QoS(rclcpp::QoSInitialization(
-                                 RMW_QOS_POLICY_HISTORY_KEEP_LAST, 5000))
-                     .reliable()
-                     .transient_local();
+  auto cbg_qos = rclcpp::QoS(rclcpp::KeepAll()).reliable().transient_local();
   subscription_ =
       this->create_subscription<cie_config_msgs::msg::CallbackGroupInfo>(
           "/cie_thread_configurator/callback_group_info", cbg_qos,
           std::bind(&ThreadConfiguratorNode::callback_group_callback, this,
                     std::placeholders::_1));
 
-  auto non_ros_thread_qos =
-      rclcpp::QoS(
-          rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_LAST, 5000))
-          .reliable();
+  // volatile: publisher context in spawn_non_ros2_thread is destroyed after
+  // publish, so transient_local is ineffective.
+  auto non_ros_thread_qos = rclcpp::QoS(rclcpp::KeepAll()).reliable();
   non_ros_thread_subscription_ =
       this->create_subscription<cie_config_msgs::msg::NonRosThreadInfo>(
           "/cie_thread_configurator/non_ros_thread_info", non_ros_thread_qos,
