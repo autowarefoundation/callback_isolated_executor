@@ -25,10 +25,7 @@ int main(int argc, char *argv[]) {
   auto node = std::make_shared<rclcpp_components::ComponentManager>(exec);
   exec->add_node(node);
 
-  auto config_publisher =
-      node->create_publisher<cie_config_msgs::msg::CallbackGroupInfo>(
-          "/cie_thread_configurator/callback_group_info",
-          rclcpp::QoS(5000).keep_all().reliable().transient_local());
+  auto config_publisher = cie_thread_configurator::create_client_publisher();
   auto tid = syscall(SYS_gettid);
 
   // dirty
