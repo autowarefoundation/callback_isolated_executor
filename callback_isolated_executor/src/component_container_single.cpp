@@ -1,3 +1,9 @@
+// A single-threaded component container that publishes its thread ID to the
+// CIE thread configurator. This exists for research purposes, to support the
+// use case where multiple callback groups run on a single thread while still
+// allowing thread scheduling parameters (e.g., priority, CPU affinity) to be
+// configured via the thread configurator.
+
 #include <cstdlib>
 #include <iostream>
 #include <memory>
