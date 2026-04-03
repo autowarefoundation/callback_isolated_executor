@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
   auto config_publisher =
       node->create_publisher<cie_config_msgs::msg::CallbackGroupInfo>(
           "/cie_thread_configurator/callback_group_info",
-          rclcpp::QoS(1000).keep_all());
+          rclcpp::QoS(5000).keep_all().reliable().transient_local());
   auto tid = syscall(SYS_gettid);
 
   // dirty

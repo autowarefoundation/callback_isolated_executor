@@ -77,7 +77,7 @@ ThreadConfiguratorNode::ThreadConfiguratorNode(const YAML::Node &yaml)
   }
 
   auto cbg_qos = rclcpp::QoS(rclcpp::QoSInitialization(
-                                 RMW_QOS_POLICY_HISTORY_KEEP_LAST, 1000))
+                                 RMW_QOS_POLICY_HISTORY_KEEP_LAST, 5000))
                      .reliable()
                      .transient_local();
   subscription_ =
@@ -86,12 +86,13 @@ ThreadConfiguratorNode::ThreadConfiguratorNode(const YAML::Node &yaml)
           std::bind(&ThreadConfiguratorNode::callback_group_callback, this,
                     std::placeholders::_1));
 
-  auto non_ros_qos = rclcpp::QoS(rclcpp::QoSInitialization(
-                                     RMW_QOS_POLICY_HISTORY_KEEP_LAST, 1000))
-                         .reliable();
+  auto non_ros_thread_qos =
+      rclcpp::QoS(
+          rclcpp::QoSInitialization(RMW_QOS_POLICY_HISTORY_KEEP_LAST, 5000))
+          .reliable();
   non_ros_thread_subscription_ =
       this->create_subscription<cie_config_msgs::msg::NonRosThreadInfo>(
-          "/cie_thread_configurator/non_ros_thread_info", non_ros_qos,
+          "/cie_thread_configurator/non_ros_thread_info", non_ros_thread_qos,
           std::bind(&ThreadConfiguratorNode::non_ros_thread_callback, this,
                     std::placeholders::_1));
 }

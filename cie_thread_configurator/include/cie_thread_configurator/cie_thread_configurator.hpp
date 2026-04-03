@@ -58,7 +58,7 @@ std::thread spawn_non_ros2_thread(const char *thread_name, F &&f,
     auto publisher =
         node->create_publisher<cie_config_msgs::msg::NonRosThreadInfo>(
             "/cie_thread_configurator/non_ros_thread_info",
-            rclcpp::QoS(1000).reliable());
+            rclcpp::QoS(5000).reliable());
     auto tid = static_cast<pid_t>(syscall(SYS_gettid));
 
     // Wait for subscriber to connect before publishing (timeout: 1 second)
