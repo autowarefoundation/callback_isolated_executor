@@ -74,7 +74,7 @@ create_client_publisher() {
   auto publisher =
       node->create_publisher<cie_config_msgs::msg::CallbackGroupInfo>(
           "/cie_thread_configurator/callback_group_info",
-          rclcpp::QoS(1000).keep_all());
+          rclcpp::QoS(rclcpp::KeepAll()).reliable().transient_local());
   return publisher;
 }
 
@@ -82,14 +82,6 @@ void publish_callback_group_info(
     const rclcpp::Publisher<cie_config_msgs::msg::CallbackGroupInfo>::SharedPtr
         &publisher,
     int64_t tid, const std::string &callback_group_id) {
-  if (publisher->get_subscription_count() == 0) {
-    RCLCPP_WARN(rclcpp::get_logger("cie_thread_configurator"),
-                "No subscriber for CallbackGroupInfo. "
-                "Please run thread_configurator_node if you want to configure "
-                "thread scheduling.");
-    return;
-  }
-
   auto message = std::make_shared<cie_config_msgs::msg::CallbackGroupInfo>();
 
   message->thread_id = tid;
