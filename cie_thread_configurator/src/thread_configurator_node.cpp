@@ -1,7 +1,9 @@
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <error.h>
 #include <sys/resource.h>
@@ -38,10 +40,10 @@ ThreadConfiguratorNode::ThreadConfiguratorNode(
                              "': " + e.what());
   }
 
-  validate_hardware_info(yaml);
-
   RCLCPP_INFO(this->get_logger(), "Loaded config from: %s",
               config_file.c_str());
+
+  validate_hardware_info(yaml);
 
   YAML::Node callback_groups = yaml["callback_groups"];
   YAML::Node non_ros_threads = yaml["non_ros_threads"];

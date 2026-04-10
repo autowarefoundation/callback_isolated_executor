@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="prerun" default="false" description="Run prerun_node to generate a YAML template instead of applying a config."/>
-  <arg name="config_file" default="" description="Path to the YAML configuration file (used when prerun is false)."/>
+  <arg name="config_file" default="" description="Path to the YAML configuration file. Required when 'prerun' is false; the node will abort with an error if left empty."/>
 
   <node pkg="cie_thread_configurator" exec="prerun_node" name="prerun_node" output="screen" if="$(var prerun)"/>
 
