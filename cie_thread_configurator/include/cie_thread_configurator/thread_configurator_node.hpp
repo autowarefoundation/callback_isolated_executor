@@ -26,7 +26,8 @@ class ThreadConfiguratorNode : public rclcpp::Node {
   };
 
 public:
-  ThreadConfiguratorNode(const YAML::Node &yaml);
+  explicit ThreadConfiguratorNode(
+      const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
   ~ThreadConfiguratorNode();
   bool all_applied();
   void print_all_unapplied();
@@ -35,6 +36,7 @@ public:
   bool apply_deadline_configs();
 
 private:
+  void validate_hardware_info(const YAML::Node &yaml);
   bool set_affinity_by_cgroup(int64_t thread_id, const std::vector<int> &cpus);
   bool issue_syscalls(const ThreadConfig &config);
   void callback_group_callback(

@@ -158,7 +158,12 @@ After launching the `prerun` node, launch your ROS 2 application.
 
 To launch the `prerun` node, type the command below.
 ```bash
-$ ros2 run cie_thread_configurator thread_configurator_node --prerun
+$ ros2 run cie_thread_configurator prerun_node
+```
+
+Alternatively, you can use the provided launch file:
+```bash
+$ ros2 launch cie_thread_configurator thread_configurator.launch.xml prerun:=true
 ```
 
 Then launch your ROS 2 application in another terminal window, after which you can see log messages like shown below in the `prerun` node window.
@@ -220,7 +225,12 @@ For the detailed specifications of the configuration file, please refer to https
 To launch the target ROS 2 application with the scheduler settings applied from the your_config.yaml you created, first start the configurator node with the following command.
 
 ```bash
-$ ros2 run cie_thread_configurator thread_configurator_node --config-file your_config.yaml
+$ ros2 run cie_thread_configurator thread_configurator_node --ros-args -p config_file:=your_config.yaml
+```
+
+Alternatively, you can use the provided launch file:
+```bash
+$ ros2 launch cie_thread_configurator thread_configurator.launch.xml config_file:=your_config.yaml
 ```
 
 If there is a callback group with the `SCHED_DEADLINE` scheduling policy specified, running the configurator node requires root privileges.
@@ -228,7 +238,7 @@ This is because it is not possible to set threads to SCHED_DEADLINE within the p
 Note that if the target ROS 2 application is operating with a specific ROS_DOMAIN_ID, the configurator node must also be operated with the same ROS_DOMAIN_ID.
 
 ```bash
-$ sudo bash -c "export ROS_DOMAIN_ID=[app domain id]; source /path/to/callback_isolated_executor/install/setup.bash; ros2 run cie_thread_configurator thread_configurator_node --config-file your_config.yaml"
+$ sudo bash -c "export ROS_DOMAIN_ID=[app domain id]; source /path/to/callback_isolated_executor/install/setup.bash; ros2 run cie_thread_configurator thread_configurator_node --ros-args -p config_file:=your_config.yaml"
 ```
 
 Immediately after launching the configurator node, it will validate the hardware configuration. The configurator compares the hardware information stored in the configuration file against the current system's hardware details. If there are any mismatches (such as different CPU family or model), the configurator will report an error like:

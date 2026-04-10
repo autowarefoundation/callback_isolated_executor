@@ -13,11 +13,36 @@
 #include "rclcpp/rclcpp.hpp"
 #include "yaml-cpp/yaml.h"
 
+#include "cie_thread_configurator/cie_thread_configurator.hpp"
 #include "cie_thread_configurator/sched_deadline.hpp"
 #include "cie_thread_configurator/thread_configurator_node.hpp"
 
-ThreadConfiguratorNode::ThreadConfiguratorNode(const YAML::Node &yaml)
-    : Node("thread_configurator_node"), unapplied_num_(0), cgroup_num_(0) {
+ThreadConfiguratorNode::ThreadConfiguratorNode(
+    const rclcpp::NodeOptions &options)
+    : Node("thread_configurator_node", options), unapplied_num_(0),
+      cgroup_num_(0) {
+  this->declare_parameter<std::string>("config_file", "");
+  std::string config_file = this->get_parameter("config_file").as_string();
+
+  if (config_file.empty()) {
+    throw std::runtime_error(
+        "'config_file' parameter must be provided (e.g. --ros-args -p "
+        "config_file:=/path/to/config.yaml)");
+  }
+
+  YAML::Node yaml;
+  try {
+    yaml = YAML::LoadFile(config_file);
+  } catch (const std::exception &e) {
+    throw std::runtime_error("Error reading the YAML file '" + config_file +
+                             "': " + e.what());
+  }
+
+  validate_hardware_info(yaml);
+
+  RCLCPP_INFO(this->get_logger(), "Loaded config from: %s",
+              config_file.c_str());
+
   YAML::Node callback_groups = yaml["callback_groups"];
   YAML::Node non_ros_threads = yaml["non_ros_threads"];
 
@@ -91,6 +116,47 @@ ThreadConfiguratorNode::ThreadConfiguratorNode(const YAML::Node &yaml)
           "/cie_thread_configurator/non_ros_thread_info", non_ros_thread_qos,
           std::bind(&ThreadConfiguratorNode::non_ros_thread_callback, this,
                     std::placeholders::_1));
+}
+
+void ThreadConfiguratorNode::validate_hardware_info(const YAML::Node &yaml) {
+  if (!yaml["hardware_info"]) {
+    RCLCPP_WARN(this->get_logger(),
+                "No hardware_info section found in configuration file. "
+                "Skipping hardware validation.");
+    return;
+  }
+
+  YAML::Node yaml_hw_info = yaml["hardware_info"];
+  auto current_hw_info = cie_thread_configurator::get_hardware_info();
+
+  bool all_match = true;
+  std::vector<std::string> mismatches;
+
+  for (const auto &[key, current_value] : current_hw_info) {
+    if (!yaml_hw_info[key]) {
+      continue;
+    }
+
+    std::string yaml_value = yaml_hw_info[key].as<std::string>();
+    if (yaml_value != current_value) {
+      all_match = false;
+      mismatches.push_back(key + ": expected '" + yaml_value + "', got '" +
+                           current_value + "'");
+    }
+  }
+
+  if (!all_match) {
+    std::string msg =
+        "Hardware validation failed with the following mismatches:";
+    for (const auto &mismatch : mismatches) {
+      msg += "\n  - " + mismatch;
+    }
+    throw std::runtime_error(msg);
+  }
+
+  RCLCPP_INFO(this->get_logger(),
+              "Hardware validation successful. Configuration matches this "
+              "system.");
 }
 
 ThreadConfiguratorNode::~ThreadConfiguratorNode() {

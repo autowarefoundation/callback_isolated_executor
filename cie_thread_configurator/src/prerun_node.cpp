@@ -11,7 +11,8 @@
 #include "cie_thread_configurator/cie_thread_configurator.hpp"
 #include "cie_thread_configurator/prerun_node.hpp"
 
-PrerunNode::PrerunNode() : Node("prerun_node") {
+PrerunNode::PrerunNode(const rclcpp::NodeOptions &options)
+    : Node("prerun_node", options) {
   auto cbg_qos = rclcpp::QoS(rclcpp::KeepAll()).reliable().transient_local();
   subscription_ =
       this->create_subscription<cie_config_msgs::msg::CallbackGroupInfo>(

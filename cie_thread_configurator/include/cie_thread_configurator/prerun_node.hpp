@@ -12,7 +12,8 @@
 
 class PrerunNode : public rclcpp::Node {
 public:
-  PrerunNode();
+  explicit PrerunNode(
+      const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
   void dump_yaml_config(std::filesystem::path path);
 
 private:
