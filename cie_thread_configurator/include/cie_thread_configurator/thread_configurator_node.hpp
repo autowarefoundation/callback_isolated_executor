@@ -26,7 +26,14 @@ class ThreadConfiguratorNode : public rclcpp::Node {
   };
 
 public:
-  ThreadConfiguratorNode(const YAML::Node &yaml);
+  /// Construct the node. Reads the 'config_file' ROS parameter, loads the
+  /// YAML, and performs hardware validation when a 'hardware_info' section
+  /// is present in the configuration.
+  /// @throws std::runtime_error if the 'config_file' parameter is empty, the
+  ///         YAML file cannot be loaded, or a present hardware_info section
+  ///         does not match the current system.
+  explicit ThreadConfiguratorNode(
+      const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
   ~ThreadConfiguratorNode();
   bool all_applied();
   void print_all_unapplied();
@@ -35,6 +42,7 @@ public:
   bool apply_deadline_configs();
 
 private:
+  void validate_hardware_info(const YAML::Node &yaml);
   bool set_affinity_by_cgroup(int64_t thread_id, const std::vector<int> &cpus);
   bool issue_syscalls(const ThreadConfig &config);
   void callback_group_callback(
