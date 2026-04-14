@@ -65,4 +65,5 @@ install(DIRECTORY launch/ DESTINATION share/${PROJECT_NAME}/launch)
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
+ament_export_dependencies(cie_config_msgs yaml-cpp rclcpp)
 ament_package()
