@@ -38,8 +38,7 @@ public:
   bool all_applied();
   void print_all_unapplied();
 
-  bool exist_deadline_config();
-  bool apply_deadline_configs();
+  bool has_cgroup() const;
 
 private:
   void validate_hardware_info(const YAML::Node &yaml);
@@ -59,6 +58,4 @@ private:
   std::unordered_map<std::string, ThreadConfig *> id_to_thread_config_;
   int unapplied_num_;
   int cgroup_num_;
-
-  std::vector<ThreadConfig *> deadline_configs_;
 };
