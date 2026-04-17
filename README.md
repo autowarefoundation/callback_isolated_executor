@@ -256,8 +256,9 @@ In this state, when you launch the target ROS 2 application, the configurator no
 The entries in the configurator window show the callback group ID and OS thread ID information received from the ROS 2 application, and all configured policies are applied immediately upon receipt.
 
 While the target ROS 2 application is running, the configurator node's window should not be closed and must remain open.
-After the execution of the target ROS 2 application has ended, press the enter key in the window displaying `Press enter to exit and remove cgroups...`.
-This will terminate the execution of the configurator node and simultaneously delete the cgroup that was created for setting the affinity of tasks with the `SCHED_DEADLINE` policy.
+If your configuration includes `SCHED_DEADLINE` threads with CPU affinity (configured via cgroup), after all configurations are applied the configurator will display `Press enter to exit and remove cgroups...`.
+Press enter to terminate the configurator and clean up the cgroup directories.
+If no cgroup-based affinity was used, the configurator exits automatically once the target application finishes.
 
 ## Notes on Adoption
 
