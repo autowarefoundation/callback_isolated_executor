@@ -21,19 +21,14 @@ int main(int argc, char *argv[]) {
     }
 
     if (node->all_applied()) {
-      if (node->exist_deadline_config()) {
-        RCLCPP_INFO(node->get_logger(), "Apply sched deadline?");
-        std::cin.get();
-
-        node->apply_deadline_configs();
-
+      RCLCPP_INFO(node->get_logger(),
+                  "Success: All of the configurations are applied.");
+      if (node->has_cgroup()) {
         RCLCPP_INFO(node->get_logger(),
                     "Press enter to exit and remove cgroups, if there are "
                     "SCHED_DEADLINE tasks:");
         std::cin.get();
       }
-      RCLCPP_INFO(node->get_logger(),
-                  "Success: All of the configurations are applied.");
     } else {
       node->print_all_unapplied();
     }

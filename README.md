@@ -253,32 +253,7 @@ After successful validation, the configurator will print the settings and then w
 <img width="1292" height="366" alt="cie_image1" src="https://github.com/user-attachments/assets/537034e0-167d-40dd-83ad-72c6efba7af8" />
 
 In this state, when you launch the target ROS 2 application, the configurator node will receive callback group information from the application.
-The entries in the configurator window show the callback group ID and OS thread ID information received from the ROS 2 application.
-
-If your configuration file contains callback groups with the `SCHED_DEADLINE` policy, the configurator node's window will display the message `Apply sched deadline?` and wait as shown below. If no `SCHED_DEADLINE` configurations are present, this prompt will be skipped automatically.
-
-<img width="1346" height="160" alt="cie_image2" src="https://github.com/user-attachments/assets/934ab8d5-4894-4549-aa57-d9e7ef8f22c9" />
-
-At this stage, settings with policies other than `SCHED_DEADLINE` have already been applied, while the application of settings including the `SCHED_DEADLINE` policy is postponed.
-To apply settings that include the `SCHED_DEADLINE` policy, press the enter key in the window where `Apply sched deadline?` is displayed.
-
-<details>
-<summary>Why delayed configuration of the SCHED_DEADLINE policy?</summary>
-
-We delay the applying of settings with the `SCHED_DEADLINE` policy because Autoware (main application area for this tool) contains nodes that implicitly create new threads immediately after startup, such as the EKF Localizer.
-Threads specified with the `SCHED_DEADLINE` policy are prohibited from creating new child tasks.
-Generally, real-time scheduling policies fail with an `EAGAIN` error when `clone(2)` is issued without the `SCHED_FLAG_RESET_ON_FORK` flag set.
-However, setting this flag for `SCHED_DEADLINE` threads is impossible due to the following facts:
-- According to [the Linux documentation for sched_setattr(2)](https://man7.org/linux/man-pages/man2/sched_setattr.2.html), the `flags` argument is currently required to be set to `0`, indicating that `SCHED_FLAG_RESET_ON_FORK` can only be set via `sched_setscheduler(2)`.
-- According to [the Linux documentation for sched_setscheduler(2)](https://man7.org/linux/man-pages/man2/sched_setscheduler.2.html), the `SCHED_DEADLINE` policy can only be set via `sched_setattr(2)` and not through `sched_setscheduler(2)`.
-
-Thus, we adopt a workaround where we delay only the settings that include the `SCHED_DEADLINE` policy.
-Autoware's EKF Localizer creates child threads immediately after starting and does not create more afterwards (these child threads are likely deleted soon after).
-Therefore, applying the `SCHED_DEADLINE` policy after the system has started, such as after starting playback of a rosbag or the operation of a real vehicle system, will not cause issues.
-You need to apply the `SCHED_DEADLINE` policy only after the system has fully started up and no further creation of new child threads is expected.
-</details>
-
-<img width="1348" height="223" alt="cie_image3" src="https://github.com/user-attachments/assets/0ce5f16c-af94-4d0e-976d-a09604c14367" />
+The entries in the configurator window show the callback group ID and OS thread ID information received from the ROS 2 application, and all configured policies are applied immediately upon receipt.
 
 While the target ROS 2 application is running, the configurator node's window should not be closed and must remain open.
 After the execution of the target ROS 2 application has ended, press the enter key in the window displaying `Press enter to exit and remove cgroups...`.

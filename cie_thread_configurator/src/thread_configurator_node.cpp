@@ -262,7 +262,12 @@ bool ThreadConfiguratorNode::issue_syscalls(const ThreadConfig &config) {
     struct sched_attr attr;
     memset(&attr, 0, sizeof(attr));
     attr.size = sizeof(attr);
-    attr.sched_flags = 0;
+    // SCHED_FLAG_RESET_ON_FORK lets the target thread still call
+    // fork(2)/clone(2) after being placed under SCHED_DEADLINE; without it,
+    // clone(2) returns EAGAIN. Children reset to SCHED_OTHER; each
+    // callback-group thread that needs its own SCHED_DEADLINE gets it via its
+    // own CallbackGroupInfo message.
+    attr.sched_flags = SCHED_FLAG_RESET_ON_FORK;
     attr.sched_nice = 0;
     attr.sched_priority = 0;
 
@@ -331,13 +336,12 @@ void ThreadConfiguratorNode::callback_group_callback(
               msg->thread_id, msg->callback_group_id.c_str());
   config->thread_id = msg->thread_id;
 
-  if (config->policy == "SCHED_DEADLINE") {
-    // delayed applying
-    deadline_configs_.push_back(config);
-  } else {
-    bool success = issue_syscalls(*config);
-    if (!success)
-      return;
+  if (!issue_syscalls(*config)) {
+    RCLCPP_WARN(this->get_logger(),
+                "Skipping configuration for callback group (id=%s, tid=%ld) "
+                "due to syscall failure.",
+                msg->callback_group_id.c_str(), msg->thread_id);
+    return;
   }
 
   config->applied = true;
@@ -367,28 +371,16 @@ void ThreadConfiguratorNode::non_ros_thread_callback(
               msg->thread_id, msg->thread_name.c_str());
   config->thread_id = msg->thread_id;
 
-  if (config->policy == "SCHED_DEADLINE") {
-    // delayed applying
-    deadline_configs_.push_back(config);
-  } else {
-    bool success = issue_syscalls(*config);
-    if (!success)
-      return;
+  if (!issue_syscalls(*config)) {
+    RCLCPP_WARN(this->get_logger(),
+                "Skipping configuration for non-ROS thread (name=%s, tid=%ld) "
+                "due to syscall failure.",
+                msg->thread_name.c_str(), msg->thread_id);
+    return;
   }
 
   config->applied = true;
   unapplied_num_--;
 }
 
-bool ThreadConfiguratorNode::apply_deadline_configs() {
-  for (auto config : deadline_configs_) {
-    if (!issue_syscalls(*config))
-      return false;
-  }
-
-  return true;
-}
-
-bool ThreadConfiguratorNode::exist_deadline_config() {
-  return !deadline_configs_.empty();
-}
+bool ThreadConfiguratorNode::has_cgroup() const { return cgroup_num_ > 0; }
