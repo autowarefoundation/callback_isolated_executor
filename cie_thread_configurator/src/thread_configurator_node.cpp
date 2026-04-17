@@ -341,6 +341,7 @@ void ThreadConfiguratorNode::callback_group_callback(
                 "Skipping configuration for callback group (id=%s, tid=%ld) "
                 "due to syscall failure.",
                 msg->callback_group_id.c_str(), msg->thread_id);
+    return;
   }
 
   config->applied = true;
@@ -375,6 +376,7 @@ void ThreadConfiguratorNode::non_ros_thread_callback(
                 "Skipping configuration for non-ROS thread (name=%s, tid=%ld) "
                 "due to syscall failure.",
                 msg->thread_name.c_str(), msg->thread_id);
+    return;
   }
 
   config->applied = true;
