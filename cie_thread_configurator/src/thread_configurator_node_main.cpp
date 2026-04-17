@@ -25,8 +25,8 @@ int main(int argc, char *argv[]) {
                   "Success: All of the configurations are applied.");
       if (node->has_cgroup()) {
         RCLCPP_INFO(node->get_logger(),
-                    "Press enter to exit and remove cgroups, if there are "
-                    "SCHED_DEADLINE tasks:");
+                    "Press enter to exit and remove the cgroups created for "
+                    "thread affinity:");
         std::cin.get();
       }
     } else {
