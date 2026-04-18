@@ -350,7 +350,7 @@ void ThreadConfiguratorNode::callback_group_callback(
   }
   config->applied = true;
 
-  if (unapplied_num_ == 0) {
+  if (unapplied_num_ == 0 && !configured_at_least_once_) {
     on_all_configured();
   }
 }
@@ -395,7 +395,7 @@ void ThreadConfiguratorNode::non_ros_thread_callback(
   }
   config->applied = true;
 
-  if (unapplied_num_ == 0) {
+  if (unapplied_num_ == 0 && !configured_at_least_once_) {
     on_all_configured();
   }
 }
