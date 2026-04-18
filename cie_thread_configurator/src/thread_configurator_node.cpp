@@ -119,6 +119,10 @@ ThreadConfiguratorNode::ThreadConfiguratorNode(
           "/cie_thread_configurator/non_ros_thread_info", non_ros_thread_qos,
           std::bind(&ThreadConfiguratorNode::non_ros_thread_callback, this,
                     std::placeholders::_1));
+
+  if (unapplied_num_ == 0) {
+    on_all_configured();
+  }
 }
 
 void ThreadConfiguratorNode::validate_hardware_info(const YAML::Node &yaml) {
