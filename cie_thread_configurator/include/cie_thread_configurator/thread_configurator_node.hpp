@@ -35,8 +35,8 @@ public:
   explicit ThreadConfiguratorNode(
       const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
   ~ThreadConfiguratorNode();
-  bool all_applied();
   void print_all_unapplied();
+  bool has_configured_once() const;
 
   bool has_cgroup() const;
 
@@ -48,6 +48,7 @@ private:
       const cie_config_msgs::msg::CallbackGroupInfo::SharedPtr msg);
   void non_ros_thread_callback(
       const cie_config_msgs::msg::NonRosThreadInfo::SharedPtr msg);
+  void on_all_configured();
 
   rclcpp::Subscription<cie_config_msgs::msg::CallbackGroupInfo>::SharedPtr
       subscription_;
@@ -58,4 +59,5 @@ private:
   std::unordered_map<std::string, ThreadConfig *> id_to_thread_config_;
   int unapplied_num_;
   int cgroup_num_;
+  bool configured_at_least_once_ = false;
 };

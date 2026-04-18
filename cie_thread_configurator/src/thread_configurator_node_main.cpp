@@ -15,21 +15,9 @@ int main(int argc, char *argv[]) {
         std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
 
     executor->add_node(node);
+    executor->spin();
 
-    while (rclcpp::ok() && !node->all_applied()) {
-      executor->spin_once();
-    }
-
-    if (node->all_applied()) {
-      RCLCPP_INFO(node->get_logger(),
-                  "Success: All of the configurations are applied.");
-      if (node->has_cgroup()) {
-        RCLCPP_INFO(node->get_logger(),
-                    "Press enter to exit and remove the cgroups created for "
-                    "thread affinity:");
-        std::cin.get();
-      }
-    } else {
+    if (!node->has_configured_once()) {
       node->print_all_unapplied();
     }
   } catch (const std::exception &e) {

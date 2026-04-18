@@ -253,12 +253,11 @@ After successful validation, the configurator will print the settings and then w
 <img width="1292" height="366" alt="cie_image1" src="https://github.com/user-attachments/assets/537034e0-167d-40dd-83ad-72c6efba7af8" />
 
 In this state, when you launch the target ROS 2 application, the configurator node will receive callback group information from the application.
-The entries in the configurator window show the callback group ID and OS thread ID information received from the ROS 2 application, and all configured policies are applied immediately upon receipt.
+The entries in the configurator window show the callback group ID and OS thread ID information received from the ROS 2 application, and all configured policies are applied immediately upon receipt, including `SCHED_DEADLINE` (which uses `SCHED_FLAG_RESET_ON_FORK` so that forked children reset to `SCHED_OTHER`).
 
-While the target ROS 2 application is running, the configurator node's window should not be closed and must remain open.
-If your configuration includes `SCHED_DEADLINE` threads with CPU affinity (configured via cgroup), after all configurations are applied the configurator will display `Press enter to exit and remove cgroups...`.
-Press enter to terminate the configurator and clean up the cgroup directories.
-If no cgroup-based affinity was used, the configurator exits automatically once all configurations have been applied (that is, after it receives the required thread information from the target application).
+The configurator node keeps running after all configurations have been applied.
+This allows it to re-apply configurations automatically when a target application restarts (the OS may reuse thread IDs, so thread ID equality cannot be used to skip reconfiguration).
+If your configuration includes `SCHED_DEADLINE` threads with CPU affinity (configured via cgroup), the cgroup directories are cleaned up when the configurator node is terminated.
 
 ## Notes on Adoption
 
