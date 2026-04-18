@@ -175,6 +175,10 @@ ThreadConfiguratorNode::~ThreadConfiguratorNode() {
 }
 
 void ThreadConfiguratorNode::print_all_unapplied() {
+  if (unapplied_num_ == 0) {
+    return;
+  }
+
   RCLCPP_WARN(this->get_logger(), "Following threads are not yet configured");
 
   for (auto &config : thread_configs_) {
@@ -409,10 +413,6 @@ void ThreadConfiguratorNode::on_all_configured() {
               "Success: All of the configurations are applied.");
 
   configured_at_least_once_ = true;
-}
-
-bool ThreadConfiguratorNode::has_configured_once() const {
-  return configured_at_least_once_;
 }
 
 bool ThreadConfiguratorNode::has_cgroup() const { return cgroup_num_ > 0; }

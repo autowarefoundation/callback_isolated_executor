@@ -36,7 +36,6 @@ public:
       const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
   ~ThreadConfiguratorNode();
   void print_all_unapplied();
-  bool has_configured_once() const;
 
   bool has_cgroup() const;
 
