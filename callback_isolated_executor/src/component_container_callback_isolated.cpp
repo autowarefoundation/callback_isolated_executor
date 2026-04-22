@@ -17,14 +17,13 @@ class ComponentManagerCallbackIsolated
 
   struct ExecutorWrapper {
     explicit ExecutorWrapper(std::shared_ptr<rclcpp::Executor> executor)
-        : executor(executor), thread_initialized(false) {}
+        : executor(executor) {}
 
     ExecutorWrapper(const ExecutorWrapper &) = delete;
     ExecutorWrapper &operator=(const ExecutorWrapper &) = delete;
 
     std::shared_ptr<rclcpp::Executor> executor;
     std::thread thread;
-    std::atomic_bool thread_initialized;
   };
 
 public:
@@ -176,7 +175,6 @@ void ComponentManagerCallbackIsolated::add_node_to_executor(uint64_t node_id) {
               }
             }
 
-            executor_wrapper.thread_initialized = true;
             executor_wrapper.executor->spin();
           });
     } else {
@@ -199,7 +197,6 @@ void ComponentManagerCallbackIsolated::add_node_to_executor(uint64_t node_id) {
                   this->client_publisher_, tid, group_id);
             }
 
-            executor_wrapper.thread_initialized = true;
             executor_wrapper.executor->spin();
           });
     }
@@ -221,12 +218,10 @@ void ComponentManagerCallbackIsolated::remove_node_from_executor(
 
 void ComponentManagerCallbackIsolated::cancel_executor(
     ExecutorWrapper &executor_wrapper) {
-  if (!executor_wrapper.thread_initialized) {
-    auto context = this->get_node_base_interface()->get_context();
+  auto context = this->get_node_base_interface()->get_context();
 
-    while (!executor_wrapper.executor->is_spinning() && rclcpp::ok(context)) {
-      rclcpp::sleep_for(std::chrono::milliseconds(1));
-    }
+  while (!executor_wrapper.executor->is_spinning() && rclcpp::ok(context)) {
+    rclcpp::sleep_for(std::chrono::milliseconds(1));
   }
 
   executor_wrapper.executor->cancel();
