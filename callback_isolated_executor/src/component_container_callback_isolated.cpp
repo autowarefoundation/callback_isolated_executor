@@ -218,6 +218,14 @@ void ComponentManagerCallbackIsolated::remove_node_from_executor(
 
 void ComponentManagerCallbackIsolated::cancel_executor(
     ExecutorWrapper &executor_wrapper) {
+  if (!executor_wrapper.thread.joinable()) {
+    return;
+  }
+
+  // Always wait for is_spinning() before cancel(). Do not use a separate
+  // "thread_initialized" flag as a fast-path: such a flag is set before spin()
+  // sets spinning=true, creating a window where cancel() has no effect and the
+  // subsequent spin() runs indefinitely, blocking join() forever.
   auto context = this->get_node_base_interface()->get_context();
 
   while (!executor_wrapper.executor->is_spinning() && rclcpp::ok(context)) {
