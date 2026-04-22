@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <error.h>
@@ -71,12 +72,22 @@ ThreadConfiguratorNode::ThreadConfiguratorNode(
     return s;
   };
 
+  static const std::unordered_set<std::string> valid_policies = {
+      "SCHED_OTHER", "SCHED_BATCH", "SCHED_IDLE",
+      "SCHED_FIFO",  "SCHED_RR",    "SCHED_DEADLINE",
+  };
+
   // Common lambda to load thread configuration from YAML
   auto load_thread_config = [](ThreadConfig &config, const YAML::Node &node) {
     config.thread_str = node["id"].as<std::string>();
     for (auto &cpu : node["affinity"])
       config.affinity.push_back(cpu.as<int>());
     config.policy = node["policy"].as<std::string>();
+
+    if (valid_policies.find(config.policy) == valid_policies.end()) {
+      throw std::runtime_error("Unknown scheduling policy '" + config.policy +
+                               "' for id=" + config.thread_str);
+    }
 
     if (config.policy == "SCHED_DEADLINE") {
       config.runtime = node["runtime"].as<unsigned int>();
@@ -197,8 +208,11 @@ bool ThreadConfiguratorNode::set_affinity_by_cgroup(
 
   std::string cpus_path = cgroup_path + "/cpuset.cpus";
   if (std::ofstream cpus_file{cpus_path}) {
-    for (int cpu : cpus)
-      cpus_file << cpu << ",";
+    for (size_t i = 0; i < cpus.size(); i++) {
+      if (i > 0)
+        cpus_file << ",";
+      cpus_file << cpus[i];
+    }
   } else {
     return false;
   }
@@ -288,6 +302,11 @@ bool ThreadConfiguratorNode::issue_syscalls(const ThreadConfig &config) {
           config.thread_str.c_str(), config.thread_id, strerror(errno));
       return false;
     }
+  } else {
+    RCLCPP_ERROR(
+        this->get_logger(), "Unknown scheduling policy '%s' (id=%s, tid=%ld)",
+        config.policy.c_str(), config.thread_str.c_str(), config.thread_id);
+    return false;
   }
 
   if (config.affinity.size() > 0) {
