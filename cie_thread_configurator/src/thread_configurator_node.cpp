@@ -197,8 +197,11 @@ bool ThreadConfiguratorNode::set_affinity_by_cgroup(
 
   std::string cpus_path = cgroup_path + "/cpuset.cpus";
   if (std::ofstream cpus_file{cpus_path}) {
-    for (int cpu : cpus)
-      cpus_file << cpu << ",";
+    for (size_t i = 0; i < cpus.size(); i++) {
+      if (i > 0)
+        cpus_file << ",";
+      cpus_file << cpus[i];
+    }
   } else {
     return false;
   }
@@ -288,6 +291,10 @@ bool ThreadConfiguratorNode::issue_syscalls(const ThreadConfig &config) {
           config.thread_str.c_str(), config.thread_id, strerror(errno));
       return false;
     }
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Unknown scheduling policy '%s' for id=%s",
+                 config.policy.c_str(), config.thread_str.c_str());
+    return false;
   }
 
   if (config.affinity.size() > 0) {
