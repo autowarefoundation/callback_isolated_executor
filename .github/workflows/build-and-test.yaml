@@ -63,9 +63,10 @@ jobs:
     # Symlink ROS Python packages to the system site-packages so CMake's execute_process()
     # can import them. On Jazzy (Ubuntu 24.04) execute_process() does not inherit PYTHONPATH,
     # so the build-time Python subprocess fails to import ament_package. Humble is unaffected,
-    # and the symlink is harmless there.
+    # so this step is scoped to Jazzy to avoid mutating the runner's system site-packages
+    # there and masking environment issues.
     - name: Setup ROS Python packages for system Python
-      if: steps.check_diff_cpp.outputs.cpp_changed == 'true'
+      if: steps.check_diff_cpp.outputs.cpp_changed == 'true' && env.ROS_DISTRO == 'jazzy'
       run: |
         ROS_PYTHON_PATH=$(python3 -c "import sys; print(f'/opt/ros/${ROS_DISTRO}/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages')")
         SYSTEM_PYTHON_PATH=$(python3 -c "import site; print(site.getsitepackages()[0])")
