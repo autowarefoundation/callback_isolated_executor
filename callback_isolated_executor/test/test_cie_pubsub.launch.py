@@ -7,7 +7,14 @@ import launch_testing.asserts
 import launch_testing.markers
 import pytest
 import rclpy
+from cie_config_msgs.msg import CallbackGroupInfo
 from rclpy.node import Node
+from rclpy.qos import (
+    QoSDurabilityPolicy,
+    QoSHistoryPolicy,
+    QoSProfile,
+    QoSReliabilityPolicy,
+)
 from std_msgs.msg import Int32
 
 
@@ -43,30 +50,65 @@ class TestCiePubSub(unittest.TestCase):
     def tearDown(self):
         self.node.destroy_node()
 
+    def _spin_until(self, predicate, timeout_sec):
+        end_time = self.node.get_clock().now().nanoseconds + int(
+            timeout_sec * 1_000_000_000
+        )
+        while (
+            not predicate()
+            and self.node.get_clock().now().nanoseconds < end_time
+        ):
+            rclpy.spin_once(self.node, timeout_sec=0.1)
+
     def test_echo_messages_flow(self):
         received = []
         self.node.create_subscription(
             Int32, "echo", lambda msg: received.append(msg.data), 10
         )
 
-        end_time = self.node.get_clock().now().nanoseconds + 15 * 1_000_000_000
-        target_count = 5
-        while (
-            len(received) < target_count
-            and self.node.get_clock().now().nanoseconds < end_time
-        ):
-            rclpy.spin_once(self.node, timeout_sec=0.1)
+        self._spin_until(lambda: len(received) >= 5, timeout_sec=15.0)
 
         self.assertGreaterEqual(
             len(received),
-            target_count,
-            f"Expected >= {target_count} echo messages, got {len(received)}: {received}",
+            5,
+            f"Expected >= 5 echo messages, got {len(received)}: {received}",
         )
         # Values come from an incrementing counter; the observed subsequence must
         # be strictly increasing. We do not require start==0 because discovery
         # latency may drop the first few messages.
         for earlier, later in zip(received, received[1:]):
             self.assertLess(earlier, later)
+
+    def test_callback_groups_isolated(self):
+        # CIE publishes one (callback_group_id, thread_id) per callback group on a
+        # transient_local topic, so a late-joining subscriber still receives them.
+        # Distinct thread ids prove the callbacks are isolated onto separate threads.
+        infos = []
+        qos = QoSProfile(
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            history=QoSHistoryPolicy.KEEP_ALL,
+        )
+        self.node.create_subscription(
+            CallbackGroupInfo,
+            "/cie_thread_configurator/callback_group_info",
+            lambda msg: infos.append((msg.callback_group_id, msg.thread_id)),
+            qos,
+        )
+
+        self._spin_until(lambda: len(infos) >= 2, timeout_sec=15.0)
+
+        self.assertGreaterEqual(
+            len(infos),
+            2,
+            f"Expected >= 2 callback group infos, got {infos}",
+        )
+        thread_ids = {thread_id for _, thread_id in infos}
+        self.assertGreaterEqual(
+            len(thread_ids),
+            2,
+            f"Expected callbacks isolated across >= 2 threads, got {infos}",
+        )
 
 
 @launch_testing.post_shutdown_test()
