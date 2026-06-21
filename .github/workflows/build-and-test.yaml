@@ -6,9 +6,19 @@ on:
       - labeled
 
 jobs:
-  build-and-test:
+  build-and-test-matrix:
     if: ${{ github.event.label.name == 'run-build-test' }}
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distro: humble
+            os: ubuntu-22.04
+          - ros_distro: jazzy
+            os: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    env:
+      ROS_DISTRO: ${{ matrix.ros_distro }}
 
     steps:
     - name: Set PR fetch depth
@@ -29,7 +39,7 @@ jobs:
         else
           echo "cpp_changed=false" >> $GITHUB_OUTPUT
         fi
-        
+
     - name: Setup ROS 2 environment
       if: steps.check_diff_cpp.outputs.cpp_changed == 'true'
       run: |
@@ -39,21 +49,53 @@ jobs:
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
         sudo apt update
         sudo DEBIAN_FRONTEND=noninteractive apt upgrade -y
-        sudo apt install -y ros-humble-desktop python3-colcon-common-extensions ros-humble-ament-cmake python3-colcon-mixin
+        sudo apt install -y ros-${ROS_DISTRO}-desktop python3-colcon-common-extensions ros-${ROS_DISTRO}-ament-cmake python3-colcon-mixin ros-${ROS_DISTRO}-ament-package
 
     - name: Install dependencies
       if: steps.check_diff_cpp.outputs.cpp_changed == 'true'
       run: |
-        source /opt/ros/humble/setup.bash
+        source /opt/ros/${ROS_DISTRO}/setup.bash
         sudo apt install -y python3-rosdep
         sudo rosdep init
         rosdep update
         rosdep install -y --from-paths . --ignore-src --rosdistro $ROS_DISTRO
 
+    # Symlink ROS Python packages to the system site-packages so CMake's execute_process()
+    # can import them. On Jazzy (Ubuntu 24.04) execute_process() does not inherit PYTHONPATH,
+    # so the build-time Python subprocess fails to import ament_package. Humble is unaffected,
+    # so this step is scoped to Jazzy to avoid mutating the runner's system site-packages
+    # there and masking environment issues.
+    - name: Setup ROS Python packages for system Python
+      if: steps.check_diff_cpp.outputs.cpp_changed == 'true' && env.ROS_DISTRO == 'jazzy'
+      run: |
+        ROS_PYTHON_PATH=$(python3 -c "import sys; print(f'/opt/ros/${ROS_DISTRO}/lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages')")
+        SYSTEM_PYTHON_PATH=$(python3 -c "import site; print(site.getsitepackages()[0])")
+        sudo ln -sf "$ROS_PYTHON_PATH/ament_package" "$SYSTEM_PYTHON_PATH/ament_package"
+        python3 -c "import ament_package; print('ament_package found at:', ament_package.__file__)"
+
     - name: Build
       if: steps.check_diff_cpp.outputs.cpp_changed == 'true'
       run: |
-        source /opt/ros/humble/setup.bash
+        source /opt/ros/${ROS_DISTRO}/setup.bash
         colcon build --parallel-workers 1 --merge-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1
-    
+
     # TODO: run tests
+
+  # Summary job that provides a single status check for branch protection rules.
+  # Matrix jobs report status as "build-and-test-matrix (<distro>)", but branch protection
+  # requires an exact job name. This job keeps the original "build-and-test" name so existing
+  # branch protection rules continue to work without manual changes.
+  build-and-test:
+    if: ${{ always() && github.event.label.name == 'run-build-test' }}
+    needs: build-and-test-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check matrix job results
+        run: |
+          if [ "${{ needs.build-and-test-matrix.result }}" = "success" ] || [ "${{ needs.build-and-test-matrix.result }}" = "skipped" ]; then
+            echo "All matrix jobs passed or were skipped"
+            exit 0
+          else
+            echo "One or more matrix jobs failed: ${{ needs.build-and-test-matrix.result }}"
+            exit 1
+          fi
