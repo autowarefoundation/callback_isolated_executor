@@ -65,4 +65,18 @@ ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
 ament_export_dependencies(cie_thread_configurator cie_config_msgs)
 
+if(BUILD_TESTING)
+  find_package(launch_testing_ament_cmake REQUIRED)
+
+  add_executable(cie_pubsub_test_node test/cie_pubsub_test_node.cpp)
+  target_link_libraries(cie_pubsub_test_node callback_isolated_executor)
+  ament_target_dependencies(cie_pubsub_test_node rclcpp std_msgs)
+
+  install(TARGETS cie_pubsub_test_node
+    RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+  add_launch_test(test/test_cie_pubsub.launch.py)
+endif()
+
 ament_package()

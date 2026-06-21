@@ -79,7 +79,20 @@ jobs:
         source /opt/ros/${ROS_DISTRO}/setup.bash
         colcon build --parallel-workers 1 --merge-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 
-    # TODO: run tests
+    - name: Test
+      if: steps.check_diff_cpp.outputs.cpp_changed == 'true'
+      run: |
+        source /opt/ros/${ROS_DISTRO}/setup.bash
+        source install/setup.bash
+        # Run only the functional launch test. Code style is enforced separately
+        # by the run-pre-commit workflow (clang-format), so the ament linters are
+        # excluded here via the launch_test label.
+        colcon test \
+          --packages-select callback_isolated_executor \
+          --merge-install \
+          --event-handlers console_direct+ \
+          --ctest-args -L launch_test
+        colcon test-result --verbose
 
   # Summary job that provides a single status check for branch protection rules.
   # Matrix jobs report status as "build-and-test-matrix (<distro>)", but branch protection
