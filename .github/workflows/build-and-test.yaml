@@ -34,7 +34,7 @@ jobs:
       run: |
         set -e
         if git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} \
-            | grep -qE '*\.(cpp|hpp)$'; then
+            | grep -qE '.*\.(cpp|hpp)$'; then
           echo "cpp_changed=true" >> $GITHUB_OUTPUT
         else
           echo "cpp_changed=false" >> $GITHUB_OUTPUT

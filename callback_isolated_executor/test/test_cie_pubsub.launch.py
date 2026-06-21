@@ -24,7 +24,6 @@ def generate_test_description():
     cie_pubsub_node = launch_ros.actions.Node(
         package="callback_isolated_executor",
         executable="cie_pubsub_test_node",
-        name="cie_pubsub_test_node",
         output="screen",
     )
     return (
