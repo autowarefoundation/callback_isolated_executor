@@ -20,6 +20,13 @@ if(BUILD_TESTING)
   # uncomment the line when this package is not in a git repo
   #set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_ros REQUIRED)
+  find_package(std_msgs REQUIRED)
+
+  ament_add_ros_isolated_gtest(test_util test/test_util.cpp)
+  target_link_libraries(test_util thread_configurator)
+  ament_target_dependencies(test_util rclcpp std_msgs cie_config_msgs)
 endif()
 
 add_library(thread_configurator SHARED src/util.cpp)
