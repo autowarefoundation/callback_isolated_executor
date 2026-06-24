@@ -153,10 +153,11 @@ TEST_F(CreateCallbackGroupIdTest, TimerEntityUsesPeriodNanoseconds) {
   EXPECT_EQ(id, "/test_node@Timer(100000000)");
 }
 
-// Multiple entities are joined with '@'. collect_all_ptrs emits them in the
-// order: subscriptions, services, clients, then timers. This test pins that
-// ordering and the internal '@' joining.
-TEST_F(CreateCallbackGroupIdTest, MultipleEntitiesAreJoinedInStorageOrder) {
+// Multiple entities are joined with '@' and sorted alphabetically, regardless
+// of the order collect_all_ptrs reports them (subscriptions, services,
+// clients, then timers). Sorting puts them in the order Client < Service <
+// Subscription < Timer.
+TEST_F(CreateCallbackGroupIdTest, MultipleEntitiesAreSortedAlphabetically) {
   // Arrange
   auto node = std::make_shared<rclcpp::Node>("test_node");
   auto group = make_group(node);
@@ -173,8 +174,38 @@ TEST_F(CreateCallbackGroupIdTest, MultipleEntitiesAreJoinedInStorageOrder) {
   const std::string id = create_callback_group_id(group, node);
 
   // Assert
-  EXPECT_EQ(id, "/test_node@Subscription(/chatter)@Service(/srv)@Client(/"
-                "cli)@Timer(100000000)");
+  EXPECT_EQ(id, "/test_node@Client(/cli)@Service(/srv)@Subscription(/"
+                "chatter)@Timer(100000000)");
+}
+
+// The id must depend only on the set of entities, not on the order they were
+// registered. Two groups holding the same subscriptions registered in opposite
+// orders must produce identical ids.
+TEST_F(CreateCallbackGroupIdTest, IdIsIndependentOfRegistrationOrder) {
+  // Arrange
+  auto node = std::make_shared<rclcpp::Node>("test_node");
+
+  auto group_ascending = make_group(node);
+  auto sub_a1 = add_subscription(node, group_ascending, "/a");
+  auto sub_b1 = add_subscription(node, group_ascending, "/b");
+  ASSERT_NE(sub_a1, nullptr);
+  ASSERT_NE(sub_b1, nullptr);
+
+  auto group_descending = make_group(node);
+  auto sub_b2 = add_subscription(node, group_descending, "/b");
+  auto sub_a2 = add_subscription(node, group_descending, "/a");
+  ASSERT_NE(sub_b2, nullptr);
+  ASSERT_NE(sub_a2, nullptr);
+
+  // Act
+  const std::string id_ascending =
+      create_callback_group_id(group_ascending, node);
+  const std::string id_descending =
+      create_callback_group_id(group_descending, node);
+
+  // Assert
+  EXPECT_EQ(id_ascending, id_descending);
+  EXPECT_EQ(id_ascending, "/test_node@Subscription(/a)@Subscription(/b)");
 }
 
 // With no entities, only the bare "node@" prefix is built, so stripping the
