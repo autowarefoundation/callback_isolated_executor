@@ -43,9 +43,13 @@ std::string create_callback_group_id(
 
   auto timer_func = [&entries](const rclcpp::TimerBase::SharedPtr &timer) {
     std::shared_ptr<const rcl_timer_t> timer_handle = timer->get_timer_handle();
-    int64_t period;
+    int64_t period = 0;
     rcl_ret_t ret = rcl_timer_get_period(timer_handle.get(), &period);
-    (void)ret;
+    // Fall back to 0 on failure so the id stays deterministic instead of
+    // depending on an uninitialized value.
+    if (ret != RCL_RET_OK) {
+      period = 0;
+    }
 
     entries.push_back("Timer(" + std::to_string(period) + ")");
   };
