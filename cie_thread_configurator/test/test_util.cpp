@@ -18,6 +18,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_srvs/srv/empty.hpp"
 #include "gtest/gtest.h"
 
 #include "cie_thread_configurator/cie_thread_configurator.hpp"
@@ -31,7 +32,12 @@ protected:
   void SetUp() override { rclcpp::init(0, nullptr); }
   void TearDown() override { rclcpp::shutdown(); }
 
-  // Helper: attach a subscription on an absolute topic to the given group.
+  rclcpp::CallbackGroup::SharedPtr
+  make_group(const rclcpp::Node::SharedPtr &node) {
+    return node->create_callback_group(
+        rclcpp::CallbackGroupType::MutuallyExclusive);
+  }
+
   rclcpp::SubscriptionBase::SharedPtr
   add_subscription(const rclcpp::Node::SharedPtr &node,
                    const rclcpp::CallbackGroup::SharedPtr &group,
@@ -42,74 +48,165 @@ protected:
         topic, rclcpp::QoS(10),
         [](const std_msgs::msg::String::ConstSharedPtr) {}, options);
   }
+
+  rclcpp::ServiceBase::SharedPtr
+  add_service(const rclcpp::Node::SharedPtr &node,
+              const rclcpp::CallbackGroup::SharedPtr &group,
+              const std::string &name) {
+    return node->create_service<std_srvs::srv::Empty>(
+        name,
+        [](const std::shared_ptr<std_srvs::srv::Empty::Request>,
+           std::shared_ptr<std_srvs::srv::Empty::Response>) {},
+        rclcpp::ServicesQoS().get_rmw_qos_profile(), group);
+  }
+
+  rclcpp::ClientBase::SharedPtr
+  add_client(const rclcpp::Node::SharedPtr &node,
+             const rclcpp::CallbackGroup::SharedPtr &group,
+             const std::string &name) {
+    return node->create_client<std_srvs::srv::Empty>(
+        name, rclcpp::ServicesQoS().get_rmw_qos_profile(), group);
+  }
+
+  rclcpp::TimerBase::SharedPtr
+  add_timer(const rclcpp::Node::SharedPtr &node,
+            const rclcpp::CallbackGroup::SharedPtr &group,
+            std::chrono::nanoseconds period) {
+    return node->create_wall_timer(period, []() {}, group);
+  }
 };
 
 // A node at the root namespace must produce a single leading slash
 // (e.g. "/node", not "//node"), then the entity descriptor.
 TEST_F(CreateCallbackGroupIdTest, RootNamespaceWithSubscription) {
+  // Arrange
   auto node = std::make_shared<rclcpp::Node>("test_node");
-  auto group =
-      node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  auto group = make_group(node);
   auto sub = add_subscription(node, group, "/chatter");
   ASSERT_NE(sub, nullptr);
 
-  EXPECT_EQ(create_callback_group_id(group, node),
-            "/test_node@Subscription(/chatter)");
+  // Act
+  const std::string id = create_callback_group_id(group, node);
+
+  // Assert
+  EXPECT_EQ(id, "/test_node@Subscription(/chatter)");
 }
 
 // A non-root namespace exercises the "ns + '/'" branch.
 TEST_F(CreateCallbackGroupIdTest, NonRootNamespace) {
+  // Arrange
   auto node = std::make_shared<rclcpp::Node>("test_node", "my_ns");
-  auto group =
-      node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  auto group = make_group(node);
   auto sub = add_subscription(node, group, "/chatter");
   ASSERT_NE(sub, nullptr);
 
-  EXPECT_EQ(create_callback_group_id(group, node),
-            "/my_ns/test_node@Subscription(/chatter)");
-}
-
-// The trailing '@' separator appended after the last entity must be removed.
-TEST_F(CreateCallbackGroupIdTest, TrailingSeparatorStripped) {
-  auto node = std::make_shared<rclcpp::Node>("test_node");
-  auto group =
-      node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  auto sub = add_subscription(node, group, "/chatter");
-  ASSERT_NE(sub, nullptr);
-
+  // Act
   const std::string id = create_callback_group_id(group, node);
-  ASSERT_FALSE(id.empty());
-  EXPECT_NE(id.back(), '@');
+
+  // Assert
+  EXPECT_EQ(id, "/my_ns/test_node@Subscription(/chatter)");
 }
 
-// Timers have no name, so they are identified by their period in nanoseconds.
+// A service entity is rendered as Service(<name>).
+TEST_F(CreateCallbackGroupIdTest, ServiceEntity) {
+  // Arrange
+  auto node = std::make_shared<rclcpp::Node>("test_node");
+  auto group = make_group(node);
+  auto service = add_service(node, group, "/srv");
+  ASSERT_NE(service, nullptr);
+
+  // Act
+  const std::string id = create_callback_group_id(group, node);
+
+  // Assert
+  EXPECT_EQ(id, "/test_node@Service(/srv)");
+}
+
+// A client entity is rendered as Client(<name>).
+TEST_F(CreateCallbackGroupIdTest, ClientEntity) {
+  // Arrange
+  auto node = std::make_shared<rclcpp::Node>("test_node");
+  auto group = make_group(node);
+  auto client = add_client(node, group, "/srv");
+  ASSERT_NE(client, nullptr);
+
+  // Act
+  const std::string id = create_callback_group_id(group, node);
+
+  // Assert
+  EXPECT_EQ(id, "/test_node@Client(/srv)");
+}
+
+// A timer has no name, so it is identified by its period in nanoseconds.
 // 100 ms == 100000000 ns.
 TEST_F(CreateCallbackGroupIdTest, TimerEntityUsesPeriodNanoseconds) {
+  // Arrange
   auto node = std::make_shared<rclcpp::Node>("test_node");
-  auto group =
-      node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  auto timer =
-      node->create_wall_timer(std::chrono::milliseconds(100), []() {}, group);
+  auto group = make_group(node);
+  auto timer = add_timer(node, group, std::chrono::milliseconds(100));
   ASSERT_NE(timer, nullptr);
 
-  EXPECT_EQ(create_callback_group_id(group, node),
-            "/test_node@Timer(100000000)");
+  // Act
+  const std::string id = create_callback_group_id(group, node);
+
+  // Assert
+  EXPECT_EQ(id, "/test_node@Timer(100000000)");
+}
+
+// Multiple entities are joined with '@'. collect_all_ptrs emits them in the
+// order: subscriptions, services, clients, then timers. This test pins that
+// ordering and the internal '@' joining.
+TEST_F(CreateCallbackGroupIdTest, MultipleEntitiesAreJoinedInStorageOrder) {
+  // Arrange
+  auto node = std::make_shared<rclcpp::Node>("test_node");
+  auto group = make_group(node);
+  auto sub = add_subscription(node, group, "/chatter");
+  auto timer = add_timer(node, group, std::chrono::milliseconds(100));
+  auto service = add_service(node, group, "/srv");
+  auto client = add_client(node, group, "/cli");
+  ASSERT_NE(sub, nullptr);
+  ASSERT_NE(timer, nullptr);
+  ASSERT_NE(service, nullptr);
+  ASSERT_NE(client, nullptr);
+
+  // Act
+  const std::string id = create_callback_group_id(group, node);
+
+  // Assert
+  EXPECT_EQ(id, "/test_node@Subscription(/chatter)@Service(/srv)@Client(/"
+                "cli)@Timer(100000000)");
+}
+
+// With no entities, only the bare "node@" prefix is built, so stripping the
+// trailing '@' must yield exactly the node identifier and nothing else.
+TEST_F(CreateCallbackGroupIdTest, EmptyGroupStripsTrailingSeparator) {
+  // Arrange
+  auto node = std::make_shared<rclcpp::Node>("test_node");
+  auto group = make_group(node);
+
+  // Act
+  const std::string id = create_callback_group_id(group, node);
+
+  // Assert
+  EXPECT_EQ(id, "/test_node");
 }
 
 // The Node overload must delegate to the NodeBaseInterface overload and yield
 // an identical result.
 TEST_F(CreateCallbackGroupIdTest,
        NodeBaseInterfaceOverloadMatchesNodeOverload) {
+  // Arrange
   auto node = std::make_shared<rclcpp::Node>("test_node");
-  auto group =
-      node->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  auto group = make_group(node);
   auto sub = add_subscription(node, group, "/chatter");
   ASSERT_NE(sub, nullptr);
 
+  // Act
   const std::string id_base =
       create_callback_group_id(group, node->get_node_base_interface());
   const std::string id_node = create_callback_group_id(group, node);
 
+  // Assert
   EXPECT_EQ(id_base, id_node);
   EXPECT_EQ(id_base, "/test_node@Subscription(/chatter)");
 }
