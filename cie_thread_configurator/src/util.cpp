@@ -1,11 +1,13 @@
 #include <unistd.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "cie_config_msgs/msg/callback_group_info.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -17,33 +19,39 @@ namespace cie_thread_configurator {
 std::string create_callback_group_id(
     rclcpp::CallbackGroup::SharedPtr group,
     rclcpp::node_interfaces::NodeBaseInterface::SharedPtr node) {
-  std::stringstream ss;
-
   std::string ns = std::string(node->get_namespace());
   if (ns != "/")
     ns = ns + "/";
 
-  ss << ns << node->get_name() << "@";
+  std::vector<std::string> entries;
 
-  auto sub_func = [&ss](const rclcpp::SubscriptionBase::SharedPtr &sub) {
-    ss << "Subscription(" << sub->get_topic_name() << ")@";
+  auto sub_func = [&entries](const rclcpp::SubscriptionBase::SharedPtr &sub) {
+    entries.push_back("Subscription(" + std::string(sub->get_topic_name()) +
+                      ")");
   };
 
-  auto service_func = [&ss](const rclcpp::ServiceBase::SharedPtr &service) {
-    ss << "Service(" << service->get_service_name() << ")@";
+  auto service_func =
+      [&entries](const rclcpp::ServiceBase::SharedPtr &service) {
+        entries.push_back("Service(" +
+                          std::string(service->get_service_name()) + ")");
+      };
+
+  auto client_func = [&entries](const rclcpp::ClientBase::SharedPtr &client) {
+    entries.push_back("Client(" + std::string(client->get_service_name()) +
+                      ")");
   };
 
-  auto client_func = [&ss](const rclcpp::ClientBase::SharedPtr &client) {
-    ss << "Client(" << client->get_service_name() << ")@";
-  };
-
-  auto timer_func = [&ss](const rclcpp::TimerBase::SharedPtr &timer) {
+  auto timer_func = [&entries](const rclcpp::TimerBase::SharedPtr &timer) {
     std::shared_ptr<const rcl_timer_t> timer_handle = timer->get_timer_handle();
-    int64_t period;
+    int64_t period = 0;
     rcl_ret_t ret = rcl_timer_get_period(timer_handle.get(), &period);
-    (void)ret;
+    // Fall back to 0 on failure so the id stays deterministic instead of
+    // depending on an uninitialized value.
+    if (ret != RCL_RET_OK) {
+      period = 0;
+    }
 
-    ss << "Timer(" << period << ")@";
+    entries.push_back("Timer(" + std::to_string(period) + ")");
   };
 
   auto waitable_func = [](auto &&) {};
@@ -51,10 +59,20 @@ std::string create_callback_group_id(
   group->collect_all_ptrs(sub_func, service_func, client_func, timer_func,
                           waitable_func);
 
-  std::string ret = ss.str();
-  ret.pop_back();
+  // Sort so the id depends only on the set of entities, not the order they were
+  // registered in. collect_all_ptrs reports entities in registration order,
+  // which can differ between runs (e.g. multi-threaded or hash-ordered
+  // creation). A stable id is required because it is the key matched between
+  // the prerun config-generation run and the production run.
+  std::sort(entries.begin(), entries.end());
 
-  return ret;
+  std::stringstream ss;
+  ss << ns << node->get_name();
+  for (const auto &entry : entries) {
+    ss << "@" << entry;
+  }
+
+  return ss.str();
 }
 
 std::string create_callback_group_id(rclcpp::CallbackGroup::SharedPtr group,
