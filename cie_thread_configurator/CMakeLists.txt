@@ -11,17 +11,6 @@ find_package(rclcpp REQUIRED)
 find_package(cie_config_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # uncomment the line when a copyright and license is not present in all source files
-  #set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # uncomment the line when this package is not in a git repo
-  #set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
-
 add_library(thread_configurator SHARED src/util.cpp)
 ament_target_dependencies(thread_configurator rclcpp cie_config_msgs)
 
@@ -66,4 +55,24 @@ install(DIRECTORY launch/ DESTINATION share/${PROJECT_NAME}/launch)
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include)
 ament_export_dependencies(cie_config_msgs yaml-cpp rclcpp)
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # uncomment the line when a copyright and license is not present in all source files
+  #set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # uncomment the line when this package is not in a git repo
+  #set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_ros REQUIRED)
+  find_package(std_msgs REQUIRED)
+  find_package(std_srvs REQUIRED)
+
+  ament_add_ros_isolated_gtest(test_util test/test_util.cpp)
+  target_link_libraries(test_util thread_configurator)
+  ament_target_dependencies(test_util rclcpp std_msgs std_srvs)
+endif()
+
 ament_package()
