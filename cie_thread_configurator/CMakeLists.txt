@@ -73,6 +73,16 @@ if(BUILD_TESTING)
   ament_add_ros_isolated_gtest(test_util test/test_util.cpp)
   target_link_libraries(test_util thread_configurator)
   ament_target_dependencies(test_util rclcpp std_msgs std_srvs)
+
+  ament_add_ros_isolated_gtest(test_thread_configurator_node
+    test/test_thread_configurator_node.cpp
+    src/thread_configurator_node.cpp
+  )
+  target_link_libraries(test_thread_configurator_node thread_configurator yaml-cpp)
+  ament_target_dependencies(test_thread_configurator_node rclcpp cie_config_msgs)
+  target_include_directories(test_thread_configurator_node PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
 endif()
 
 ament_package()

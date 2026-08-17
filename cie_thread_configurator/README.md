@@ -16,7 +16,7 @@ callback_groups:
       - 0
       - 1
     policy: SCHED_OTHER
-    priority: -10
+    nice: -10
 
   - id: yyyyy
     affinity:
@@ -30,7 +30,7 @@ non_ros_threads:
     affinity:
       - 4
     policy: SCHED_OTHER
-    priority: 0
+    nice: 0
 
 ...
 ```
@@ -55,8 +55,9 @@ Below, the configurable items for each scheduler are described.
 
 ### CFS
 For threads operating on the CFS, you can specify the nice value.
-In the YAML file, this is specified under the entry name  `priority`.
+In the YAML file, this is specified under the entry name `nice`.
 The values can range from `-20` (highest priority) to `19` (lowest priority).
+Values outside this range are rejected at startup.
 
 ```yaml
   - id: xxxxx
@@ -64,7 +65,7 @@ The values can range from `-20` (highest priority) to `19` (lowest priority).
       - 0
       - 1
     policy: SCHED_OTHER
-    priority: -10
+    nice: -10
 ```
 
 ### FIFO Scheduler
@@ -73,6 +74,7 @@ In the YAML file, this is specified under the entry name  `priority`.
 The values can range from `99` (highest priority) to `1` (lowest priority).
 This range corresponds to the return values of `sched_get_priority_max(2)` and `sched_get_priority_min(2)`.
 On Linux, these values are `99` and `1`.
+Values outside this range are rejected at startup.
 
 ```yaml
   - id: xxxxx
@@ -107,22 +109,22 @@ callback_groups:
   - id: /sample_node@Subscription(/parameter_events)@Service(/sample_node/get_parameters)@Service(/sample_node/get_parameter_types)@Service(/sample_node/set_parameters)@Service(/sample_node/set_parameters_atomically)@Service(/sample_node/describe_parameters)@Service(/sample_node/list_parameters)@Waitable@Waitable@Waitable@Waitable
     affinity: ~
     policy: SCHED_OTHER
-    priority: 0
+    nice: 0
 
   - id: /sample_node@Subscription(/topic_in)@Waitable
     affinity: ~
     policy: SCHED_OTHER
-    priority: 0
+    nice: 0
 
   - id: /sample_node@Timer(1333000000)
     affinity: ~
     policy: SCHED_OTHER
-    priority: 0
+    nice: 0
 
   - id: /sample_node@Timer(3000000000)
     affinity: ~
     policy: SCHED_OTHER
-    priority: 0
+    nice: 0
 ```
 
 As shown in this example, the CallbackGroup ID consists of multiple strings separated by `@`.
