@@ -42,11 +42,12 @@ Leaving this array empty means allowing operation on all cores.
 In the policy field, you can specify one of the following scheduling policies:
 - `SCHED_OTHER`
 - `SCHED_BATCH`
+- `SCHED_IDLE`
 - `SCHED_FIFO`
 - `SCHED_RR`
 - `SCHED_DEADLINE`
 
-When specifying the task scheduling policy as `SCHED_OTHER` or `SCHED_BATCH`, it is executed on the CFS (Completely Fair Scheduler).
+When specifying the task scheduling policy as `SCHED_OTHER`, `SCHED_BATCH`, or `SCHED_IDLE`, it is executed on the CFS (Completely Fair Scheduler).
 When set to `SCHED_FIFO` or `SCHED_RR`, it runs on the FIFO scheduler.
 When specified as `SCHED_DEADLINE`, it is scheduled on the EDF (Earliest Deadline First) scheduler.
 

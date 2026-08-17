@@ -31,8 +31,10 @@ public:
   /// YAML, and performs hardware validation when a 'hardware_info' section
   /// is present in the configuration.
   /// @throws std::runtime_error if the 'config_file' parameter is empty, the
-  ///         YAML file cannot be loaded, or a present hardware_info section
-  ///         does not match the current system.
+  ///         YAML file cannot be loaded, a present hardware_info section does
+  ///         not match the current system, or an entry has an unknown 'policy'
+  ///         or a missing / non-integer / out-of-range scheduling parameter
+  ///         ('nice' for CFS policies, 'priority' for SCHED_FIFO/SCHED_RR).
   explicit ThreadConfiguratorNode(
       const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
   ~ThreadConfiguratorNode();
