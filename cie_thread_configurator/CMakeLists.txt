@@ -14,13 +14,13 @@ find_package(yaml-cpp REQUIRED)
 add_library(thread_configurator SHARED src/util.cpp)
 ament_target_dependencies(thread_configurator rclcpp cie_config_msgs)
 
-add_executable(thread_configurator_node src/thread_configurator_node_main.cpp src/thread_configurator_node.cpp)
-ament_target_dependencies(thread_configurator_node rclcpp cie_config_msgs)
-target_link_libraries(thread_configurator_node yaml-cpp thread_configurator)
+add_library(thread_configurator_node_core STATIC src/thread_configurator_node.cpp)
+ament_target_dependencies(thread_configurator_node_core rclcpp cie_config_msgs)
+target_link_libraries(thread_configurator_node_core yaml-cpp thread_configurator)
 
-target_include_directories(thread_configurator_node PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+add_executable(thread_configurator_node src/thread_configurator_node_main.cpp)
+ament_target_dependencies(thread_configurator_node rclcpp cie_config_msgs)
+target_link_libraries(thread_configurator_node thread_configurator_node_core)
 
 add_executable(prerun_node src/prerun_node_main.cpp src/prerun_node.cpp)
 ament_target_dependencies(prerun_node rclcpp cie_config_msgs)
@@ -73,6 +73,12 @@ if(BUILD_TESTING)
   ament_add_ros_isolated_gtest(test_util test/test_util.cpp)
   target_link_libraries(test_util thread_configurator)
   ament_target_dependencies(test_util rclcpp std_msgs std_srvs)
+
+  ament_add_ros_isolated_gtest(test_thread_configurator_node
+    test/test_thread_configurator_node.cpp
+  )
+  target_link_libraries(test_thread_configurator_node thread_configurator_node_core)
+  ament_target_dependencies(test_thread_configurator_node rclcpp cie_config_msgs)
 endif()
 
 ament_package()

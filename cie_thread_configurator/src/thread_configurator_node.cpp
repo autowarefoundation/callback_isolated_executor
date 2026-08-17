@@ -21,6 +21,68 @@
 #include "cie_thread_configurator/sched_deadline.hpp"
 #include "cie_thread_configurator/thread_configurator_node.hpp"
 
+namespace {
+
+constexpr int k_nice_min = -20;
+constexpr int k_nice_max = 19;
+constexpr int k_rt_priority_min = 1;
+constexpr int k_rt_priority_max = 99;
+
+bool is_cfs_policy(const std::string &policy) {
+  return policy == "SCHED_OTHER" || policy == "SCHED_BATCH" ||
+         policy == "SCHED_IDLE";
+}
+
+// 'nice' is required for the CFS policies (SCHED_OTHER/BATCH/IDLE);
+// parse_rt_priority is the mirror image for SCHED_FIFO/SCHED_RR. `entry_desc`
+// is the "id=..." fragment used in messages.
+int parse_nice(const YAML::Node &entry, const std::string &policy,
+               const std::string &entry_desc) {
+  const YAML::Node nice = entry["nice"];
+  // A key with an empty value ("nice:") is a defined null node, so `!nice`
+  // alone would pass it on to as<int>()'s context-free BadConversion.
+  if (!nice || nice.IsNull()) {
+    throw std::runtime_error("Policy '" + policy + "' requires 'nice' for " +
+                             entry_desc);
+  }
+  int value = 0;
+  try {
+    value = nice.as<int>();
+  } catch (const YAML::Exception &) {
+    throw std::runtime_error("'nice' must be an integer for " + entry_desc);
+  }
+  if (value < k_nice_min || value > k_nice_max) {
+    // setpriority(2) would silently clamp an out-of-range value to
+    // [-20, 19]; reject it here so a misunderstanding of the scale
+    // (e.g. an rt_priority-style 50) fails loudly instead.
+    throw std::runtime_error("'nice' must be in [-20, 19] for " + entry_desc +
+                             ", got " + std::to_string(value));
+  }
+  return value;
+}
+
+int parse_rt_priority(const YAML::Node &entry, const std::string &policy,
+                      const std::string &entry_desc) {
+  const YAML::Node priority = entry["priority"];
+  if (!priority || priority.IsNull()) {
+    throw std::runtime_error("Policy '" + policy +
+                             "' requires 'priority' for " + entry_desc);
+  }
+  int value = 0;
+  try {
+    value = priority.as<int>();
+  } catch (const YAML::Exception &) {
+    throw std::runtime_error("'priority' must be an integer for " + entry_desc);
+  }
+  if (value < k_rt_priority_min || value > k_rt_priority_max) {
+    throw std::runtime_error("'priority' must be in [1, 99] for " + entry_desc +
+                             ", got " + std::to_string(value));
+  }
+  return value;
+}
+
+} // namespace
+
 ThreadConfiguratorNode::ThreadConfiguratorNode(
     const rclcpp::NodeOptions &options)
     : Node("thread_configurator_node", options), unapplied_num_(0),
@@ -93,8 +155,11 @@ ThreadConfiguratorNode::ThreadConfiguratorNode(
       config.runtime = node["runtime"].as<unsigned int>();
       config.period = node["period"].as<unsigned int>();
       config.deadline = node["deadline"].as<unsigned int>();
+    } else if (is_cfs_policy(config.policy)) {
+      config.nice = parse_nice(node, config.policy, "id=" + config.thread_str);
     } else {
-      config.priority = node["priority"].as<int>();
+      config.priority =
+          parse_rt_priority(node, config.policy, "id=" + config.thread_str);
     }
   };
 
@@ -254,7 +319,7 @@ bool ThreadConfiguratorNode::issue_syscalls(const ThreadConfig &config) {
     }
 
     // Specify nice value
-    if (setpriority(PRIO_PROCESS, config.thread_id, config.priority) == -1) {
+    if (setpriority(PRIO_PROCESS, config.thread_id, config.nice) == -1) {
       RCLCPP_ERROR(this->get_logger(),
                    "Failed to configure nice value (id=%s, tid=%ld): %s",
                    config.thread_str.c_str(), config.thread_id,

@@ -15,7 +15,8 @@ class ThreadConfiguratorNode : public rclcpp::Node {
     int64_t thread_id = -1;
     std::vector<int> affinity;
     std::string policy;
-    int priority = 0;
+    int nice = 0;     // SCHED_OTHER/BATCH/IDLE only (-20..19)
+    int priority = 0; // rt_priority; SCHED_FIFO/RR only (1..99)
 
     // For SCHED_DEADLINE
     unsigned int runtime = 0;
@@ -30,8 +31,10 @@ public:
   /// YAML, and performs hardware validation when a 'hardware_info' section
   /// is present in the configuration.
   /// @throws std::runtime_error if the 'config_file' parameter is empty, the
-  ///         YAML file cannot be loaded, or a present hardware_info section
-  ///         does not match the current system.
+  ///         YAML file cannot be loaded, a present hardware_info section does
+  ///         not match the current system, or an entry has an unknown 'policy'
+  ///         or a missing / non-integer / out-of-range scheduling parameter
+  ///         ('nice' for CFS policies, 'priority' for SCHED_FIFO/SCHED_RR).
   explicit ThreadConfiguratorNode(
       const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
   ~ThreadConfiguratorNode();
