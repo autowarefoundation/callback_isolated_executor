@@ -82,3 +82,6 @@ if(BUILD_TESTING)
 endif()
 
 ament_package()
+
+ament_add_ros_isolated_gtest(test_create_callback_group_id test/test_create_callback_group_id.cpp)
+target_link_libraries(test_create_callback_group_id ${PROJECT_NAME})
